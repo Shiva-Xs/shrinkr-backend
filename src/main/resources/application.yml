@@ -1,0 +1,33 @@
+spring:
+  datasource:
+    url: ${DATABASE_URL}
+    hikari:
+      maximum-pool-size: 10
+  data:
+    redis:
+      url: ${REDIS_URL}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+  flyway:
+    enabled: true
+  security:
+    user:
+      password: unused
+app:
+  base-url: https://shrinkr.in
+  cors-origin: ${FRONTEND_URL}
+  frontend-url: ${FRONTEND_URL}
+  google-safe-browsing-key: ${SAFE_BROWSING_API_KEY}
+  rate-limit:
+    requests-per-hour: 50
+    redirects-per-minute: 300
+  qr:
+    size: 512
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

@@ -1,0 +1,23 @@
+# Local development overrides.
+# Copy this file to application-dev.yml and fill in your values.
+#
+#   cp application-dev.yml.example application-dev.yml
+#
+# application-dev.yml is gitignored — never commit real credentials.
+
+spring:
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/shrinkr_dev
+    username: postgres
+    password: postgres
+
+  data:
+    redis:
+      url: redis://localhost:6379
+
+app:
+  base-url: http://localhost:8080
+  cors-origin: http://localhost:3000
+  frontend-url: http://localhost:3000
+  google-safe-browsing-key: YOUR_SAFE_BROWSING_API_KEY_HERE
