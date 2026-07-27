@@ -30,14 +30,25 @@ public class RateLimitService {
     public RateLimitService(LettuceConnectionFactory lettuceConnectionFactory) {
         try {
             Object nativeConn = lettuceConnectionFactory.getConnection().getNativeConnection();
-            if (nativeConn instanceof StatefulRedisConnection<?, ?> connection) {
+            StatefulRedisConnection<byte[], byte[]> connection = null;
+
+            if (nativeConn instanceof io.lettuce.core.api.async.RedisAsyncCommands<?, ?> asyncCmds) {
                 @SuppressWarnings("unchecked")
-                StatefulRedisConnection<byte[], byte[]> byteConn = (StatefulRedisConnection<byte[], byte[]>) connection;
-                this.proxyManager = LettuceBasedProxyManager.builderFor(byteConn).build();
+                StatefulRedisConnection<byte[], byte[]> byteConn = (StatefulRedisConnection<byte[], byte[]>) asyncCmds.getStatefulConnection();
+                connection = byteConn;
+            } else if (nativeConn instanceof StatefulRedisConnection<?, ?> statefulConn) {
+                @SuppressWarnings("unchecked")
+                StatefulRedisConnection<byte[], byte[]> byteConn = (StatefulRedisConnection<byte[], byte[]>) statefulConn;
+                connection = byteConn;
+            }
+
+            if (connection != null) {
+                this.proxyManager = LettuceBasedProxyManager.builderFor(connection).build();
                 log.info("RateLimitService: Successfully initialized Bucket4j Redis ProxyManager.");
             } else {
-                log.warn("RateLimitService: Native connection is not StatefulRedisConnection (found {}). Rate limiting disabled.",
+                log.warn("RateLimitService: Native connection type unsupported (found {}). Rate limiting disabled.",
                         nativeConn != null ? nativeConn.getClass().getName() : "null");
+                this.proxyManager = null;
             }
         } catch (Exception e) {
             log.warn("Failed to initialize Bucket4j Redis ProxyManager: {}. Rate limiting will fail open.", e.getMessage());
