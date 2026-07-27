@@ -131,7 +131,7 @@ public class LinkController {
         String forwarded = request.getHeader("X-Forwarded-For");
         if (forwarded != null && !forwarded.isBlank()) {
             String[] parts = forwarded.split(",");
-            return parts[0].trim();
+            return parts[parts.length - 1].trim();
         }
         return request.getRemoteAddr();
     }
