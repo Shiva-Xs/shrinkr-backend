@@ -28,6 +28,7 @@ public class RateLimitService {
 
     private ProxyManager<byte[]> proxyManager;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public RateLimitService(LettuceConnectionFactory lettuceConnectionFactory) {
         try {
             Object nativeConn = lettuceConnectionFactory.getConnection().getNativeConnection();
