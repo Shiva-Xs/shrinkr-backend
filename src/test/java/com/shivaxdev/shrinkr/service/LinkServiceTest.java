@@ -235,7 +235,7 @@ class LinkServiceTest {
         linkService.deleteLink("abc123", rawToken);
 
         assertThat(link.isActive()).isFalse();
-        verify(linkRepository).save(link);
+        verify(linkRepository).saveAndFlush(link);
         verify(redisTemplate).delete("slug:abc123");
         verify(redisTemplate).delete("clicks:buffer:abc123");
     }

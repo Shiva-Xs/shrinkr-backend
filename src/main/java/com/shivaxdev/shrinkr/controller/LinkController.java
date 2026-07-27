@@ -28,8 +28,8 @@ public class LinkController {
     @Value("${app.base-url}")
     private String baseUrl;
 
-    private final LinkService      linkService;
-    private final QrService        qrService;
+    private final LinkService linkService;
+    private final QrService qrService;
     private final RateLimitService rateLimitService;
 
     @PostMapping("/api/v1/shorten")
@@ -105,7 +105,7 @@ public class LinkController {
     @GetMapping("/api/v1/qr/{slug}")
     public ResponseEntity<byte[]> getQrCode(@PathVariable String slug, HttpServletRequest httpRequest) {
         requireRedirectAllowance(httpRequest);
-        linkService.assertLinkAccessible(slug);   
+        linkService.assertLinkAccessible(slug);
 
         String shortUrl = baseUrl + "/" + slug;
         byte[] png = qrService.generateQrPng(shortUrl);
@@ -127,6 +127,10 @@ public class LinkController {
         String cfIp = request.getHeader("CF-Connecting-IP");
         if (cfIp != null && !cfIp.isBlank()) {
             return cfIp.trim();
+        }
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank()) {
+            return realIp.trim();
         }
         String forwarded = request.getHeader("X-Forwarded-For");
         if (forwarded != null && !forwarded.isBlank()) {
