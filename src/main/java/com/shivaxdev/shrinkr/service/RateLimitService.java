@@ -31,13 +31,22 @@ public class RateLimitService {
     @org.springframework.beans.factory.annotation.Autowired
     public RateLimitService(LettuceConnectionFactory lettuceConnectionFactory) {
         try {
-            Object nativeConn = lettuceConnectionFactory.getConnection().getNativeConnection();
-            this.proxyManager = initProxyManager(nativeConn);
+            Object nativeClient = lettuceConnectionFactory.getNativeClient();
+            if (nativeClient instanceof RedisClient redisClient) {
+                StatefulRedisConnection<byte[], byte[]> connection = redisClient.connect(ByteArrayCodec.INSTANCE);
+                this.proxyManager = LettuceBasedProxyManager.builderFor(connection).build();
+            } else if (nativeClient instanceof io.lettuce.core.cluster.RedisClusterClient clusterClient) {
+                StatefulRedisClusterConnection<byte[], byte[]> connection = clusterClient.connect(ByteArrayCodec.INSTANCE);
+                this.proxyManager = LettuceBasedProxyManager.builderFor(connection).build();
+            } else {
+                Object nativeConn = lettuceConnectionFactory.getConnection().getNativeConnection();
+                this.proxyManager = initProxyManager(nativeConn);
+            }
+
             if (this.proxyManager != null) {
                 log.info("RateLimitService: Successfully initialized Bucket4j Redis ProxyManager.");
             } else {
-                log.warn("RateLimitService: Native connection type unsupported (found {}). Rate limiting disabled.",
-                        nativeConn != null ? nativeConn.getClass().getName() : "null");
+                log.warn("RateLimitService: Native client/connection type unsupported. Rate limiting disabled.");
             }
         } catch (Exception e) {
             log.warn("Failed to initialize Bucket4j Redis ProxyManager: {}. Rate limiting will fail open.", e.getMessage(), e);
@@ -125,9 +134,13 @@ public class RateLimitService {
 
         try {
             var bucket = proxyManager.builder().build(redisKey.getBytes(java.nio.charset.StandardCharsets.UTF_8), configSupplier);
-            return bucket.tryConsume(1);
+            boolean consumed = bucket.tryConsume(1);
+            if (!consumed) {
+                log.info("Rate limit exceeded for key={}", redisKey);
+            }
+            return consumed;
         } catch (Exception e) {
-            log.warn("Rate limiter unavailable — failing open. key={} reason={}", redisKey, e.getMessage());
+            log.warn("Rate limiter unavailable — failing open. key={} reason={}", redisKey, e.getMessage(), e);
             return true;
         }
     }

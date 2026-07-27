@@ -124,19 +124,41 @@ public class LinkController {
     }
 
     private String resolveClientIp(HttpServletRequest request) {
+        String ip = null;
         String cfIp = request.getHeader("CF-Connecting-IP");
         if (cfIp != null && !cfIp.isBlank()) {
-            return cfIp.trim();
+            ip = cfIp.trim();
+        } else {
+            String realIp = request.getHeader("X-Real-IP");
+            if (realIp != null && !realIp.isBlank()) {
+                ip = realIp.trim();
+            } else {
+                String forwarded = request.getHeader("X-Forwarded-For");
+                if (forwarded != null && !forwarded.isBlank()) {
+                    String[] parts = forwarded.split(",");
+                    ip = parts[0].trim();
+                } else {
+                    ip = request.getRemoteAddr();
+                }
+            }
         }
-        String realIp = request.getHeader("X-Real-IP");
-        if (realIp != null && !realIp.isBlank()) {
-            return realIp.trim();
+        return stripPort(ip);
+    }
+
+    private String stripPort(String ip) {
+        if (ip == null) return "unknown";
+        ip = ip.trim();
+        if (ip.startsWith("[")) {
+            int closeBracket = ip.indexOf(']');
+            if (closeBracket != -1) {
+                return ip.substring(1, closeBracket);
+            }
         }
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            String[] parts = forwarded.split(",");
-            return parts[0].trim();
+        int firstColon = ip.indexOf(':');
+        int lastColon = ip.lastIndexOf(':');
+        if (firstColon != -1 && firstColon == lastColon) {
+            return ip.substring(0, firstColon);
         }
-        return request.getRemoteAddr();
+        return ip;
     }
 }
