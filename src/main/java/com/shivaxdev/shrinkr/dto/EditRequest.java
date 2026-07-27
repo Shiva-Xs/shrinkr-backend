@@ -3,11 +3,13 @@ package com.shivaxdev.shrinkr.dto;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Min;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Getter
+@Setter
 @NoArgsConstructor
 public class EditRequest {
 
