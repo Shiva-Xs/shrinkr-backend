@@ -293,7 +293,11 @@ public class LinkService {
         }
 
         linkRepository.save(link);
-        redisTemplate.delete(CACHE_KEY_PREFIX + slug);   
+        try {
+            redisTemplate.delete(CACHE_KEY_PREFIX + slug);
+        } catch (DataAccessException e) {
+            log.warn("Redis unavailable — cache not cleared for slug={} reason={}", slug, e.getMessage());
+        }
     }
 
     @Transactional
@@ -303,8 +307,12 @@ public class LinkService {
 
         link.setActive(false);
         linkRepository.save(link);
-        redisTemplate.delete(CACHE_KEY_PREFIX + slug);   
-        redisTemplate.delete(BUFFER_KEY_PREFIX + slug);  
+        try {
+            redisTemplate.delete(CACHE_KEY_PREFIX + slug);
+            redisTemplate.delete(BUFFER_KEY_PREFIX + slug);
+        } catch (DataAccessException e) {
+            log.warn("Redis unavailable — cache/buffer not cleared for slug={} reason={}", slug, e.getMessage());
+        }
     }
 
     private ShortLink findLinkOrThrow(String slug) {
