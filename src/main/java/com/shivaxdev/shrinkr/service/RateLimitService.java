@@ -29,14 +29,15 @@ public class RateLimitService {
 
     public RateLimitService(LettuceConnectionFactory lettuceConnectionFactory) {
         try {
-            Object nativeClient = lettuceConnectionFactory.getNativeClient();
-            if (nativeClient instanceof RedisClient redisClient) {
-                StatefulRedisConnection<byte[], byte[]> connection =
-                        redisClient.connect(ByteArrayCodec.INSTANCE);
-                this.proxyManager = LettuceBasedProxyManager.builderFor(connection).build();
+            Object nativeConn = lettuceConnectionFactory.getConnection().getNativeConnection();
+            if (nativeConn instanceof StatefulRedisConnection<?, ?> connection) {
+                @SuppressWarnings("unchecked")
+                StatefulRedisConnection<byte[], byte[]> byteConn = (StatefulRedisConnection<byte[], byte[]>) connection;
+                this.proxyManager = LettuceBasedProxyManager.builderFor(byteConn).build();
+                log.info("RateLimitService: Successfully initialized Bucket4j Redis ProxyManager.");
             } else {
-                log.warn("RateLimitService: RedisClient is not single-node (found {}). Rate limiting disabled.",
-                        nativeClient != null ? nativeClient.getClass().getSimpleName() : "null");
+                log.warn("RateLimitService: Native connection is not StatefulRedisConnection (found {}). Rate limiting disabled.",
+                        nativeConn != null ? nativeConn.getClass().getName() : "null");
             }
         } catch (Exception e) {
             log.warn("Failed to initialize Bucket4j Redis ProxyManager: {}. Rate limiting will fail open.", e.getMessage());
