@@ -25,21 +25,23 @@ public class RateLimitService {
     @Value("${app.rate-limit.redirects-per-minute:300}")
     private int redirectsPerMinute;   
 
-    private final ProxyManager<byte[]> proxyManager;
+    private ProxyManager<byte[]> proxyManager;
 
     public RateLimitService(LettuceConnectionFactory lettuceConnectionFactory) {
-
-        Object nativeClient = lettuceConnectionFactory.getNativeClient();
-        if (!(nativeClient instanceof RedisClient)) {
-            throw new IllegalStateException(
-                    "RateLimitService requires single-node Redis. Found: "
-                    + nativeClient.getClass().getSimpleName());
+        try {
+            Object nativeClient = lettuceConnectionFactory.getNativeClient();
+            if (nativeClient instanceof RedisClient redisClient) {
+                StatefulRedisConnection<byte[], byte[]> connection =
+                        redisClient.connect(ByteArrayCodec.INSTANCE);
+                this.proxyManager = LettuceBasedProxyManager.builderFor(connection).build();
+            } else {
+                log.warn("RateLimitService: RedisClient is not single-node (found {}). Rate limiting disabled.",
+                        nativeClient != null ? nativeClient.getClass().getSimpleName() : "null");
+            }
+        } catch (Exception e) {
+            log.warn("Failed to initialize Bucket4j Redis ProxyManager: {}. Rate limiting will fail open.", e.getMessage());
+            this.proxyManager = null;
         }
-        RedisClient redisClient = (RedisClient) nativeClient;
-        StatefulRedisConnection<byte[], byte[]> connection =
-                redisClient.connect(ByteArrayCodec.INSTANCE);
-
-        this.proxyManager = LettuceBasedProxyManager.builderFor(connection).build();
     }
 
     public boolean isAllowed(String ipAddress) {
@@ -51,6 +53,9 @@ public class RateLimitService {
     }
 
     private boolean tryConsume(String redisKey, int capacity, Duration refillPeriod) {
+        if (proxyManager == null) {
+            return true;
+        }
         Supplier<BucketConfiguration> configSupplier = () -> BucketConfiguration.builder()
                 .addLimit(Bandwidth.builder()
                         .capacity(capacity)
@@ -58,12 +63,10 @@ public class RateLimitService {
                         .build())
                 .build();
 
-        var bucket = proxyManager.builder().build(redisKey.getBytes(), configSupplier);
-
         try {
+            var bucket = proxyManager.builder().build(redisKey.getBytes(), configSupplier);
             return bucket.tryConsume(1);
         } catch (Exception e) {
-
             log.warn("Rate limiter unavailable — failing open. reason={}", e.getMessage());
             return true;
         }
