@@ -292,11 +292,11 @@ public class LinkService {
             link.setPasswordHash(BCrypt.hashpw(req.getPassword(), BCrypt.gensalt()));
         }
 
-        linkRepository.save(link);
+        linkRepository.saveAndFlush(link);
         try {
             redisTemplate.delete(CACHE_KEY_PREFIX + slug);
-        } catch (DataAccessException e) {
-            log.warn("Redis unavailable — cache not cleared for slug={} reason={}", slug, e.getMessage());
+        } catch (Exception e) {
+            log.warn("Redis delete cache failed slug={} reason={}", slug, e.getMessage());
         }
     }
 
@@ -306,12 +306,12 @@ public class LinkService {
         verifyToken(rawToken, link);
 
         link.setActive(false);
-        linkRepository.save(link);
+        linkRepository.saveAndFlush(link);
         try {
             redisTemplate.delete(CACHE_KEY_PREFIX + slug);
             redisTemplate.delete(BUFFER_KEY_PREFIX + slug);
-        } catch (DataAccessException e) {
-            log.warn("Redis unavailable — cache/buffer not cleared for slug={} reason={}", slug, e.getMessage());
+        } catch (Exception e) {
+            log.warn("Redis delete failed slug={} reason={}", slug, e.getMessage());
         }
     }
 
